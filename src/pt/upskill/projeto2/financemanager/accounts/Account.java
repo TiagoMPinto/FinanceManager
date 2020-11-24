@@ -20,6 +20,7 @@ public abstract class Account {
     private double interestedRate;
     private List<StatementLine> statementLineList;
     private String additionalInfo="";
+    private String oAntonioBurro;
 
     public Account(long id, String accountName, Date startDate, Date endDate, double balance, double interestedRate, List<StatementLine> statementLineList) {
         this.id = id;
