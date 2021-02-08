@@ -45,10 +45,10 @@ public class Category implements Serializable {
 
 
         } catch(IOException ex) {
-            ex.printStackTrace();
+            //System.out.println("IOException was caught");
 
         } catch(ClassNotFoundException ex) {
-            System.out.println("ClassNotFoundException is caught");
+            System.out.println("ClassNotFoundException was caught");
 
         }
 
@@ -108,5 +108,14 @@ public class Category implements Serializable {
 
     public List<String> getTags() {
         return tags;
+    }
+
+    public static Category nameToCategory(String name, List<Category> categoryList){
+        for(Category category:categoryList){
+            if(category.getName().equals(name)){
+                return category;
+            }
+        }
+        return null;
     }
 }

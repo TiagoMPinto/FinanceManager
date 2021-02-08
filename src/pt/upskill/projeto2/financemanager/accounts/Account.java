@@ -2,6 +2,7 @@ package pt.upskill.projeto2.financemanager.accounts;
 
 import pt.upskill.projeto2.financemanager.categories.Category;
 import pt.upskill.projeto2.financemanager.date.Date;
+import pt.upskill.projeto2.financemanager.filters.BeforeDateSelector;
 import pt.upskill.projeto2.financemanager.filters.Filter;
 import pt.upskill.projeto2.financemanager.filters.Selector;
 
@@ -9,6 +10,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Scanner;
 
 public abstract class Account {
@@ -20,7 +22,6 @@ public abstract class Account {
     private double interestedRate;
     private List<StatementLine> statementLineList;
     private String additionalInfo="";
-    private String oAntonioBurro;
 
     public Account(long id, String accountName, Date startDate, Date endDate, double balance, double interestedRate, List<StatementLine> statementLineList) {
         this.id = id;
@@ -60,6 +61,9 @@ public abstract class Account {
         String additionalInfo="";
         while(scanner.hasNextLine()){
             String line= scanner.nextLine();
+            if(line.equals("")){//caso exista uma linha vazia
+                continue;
+            }
             String[] lineInfo= line.split(";");
             if(i==1){
                 id=Long.parseLong(lineInfo[1].replaceAll("[^\\d.]", ""));
@@ -80,15 +84,7 @@ public abstract class Account {
                 endDate= new Date(Integer.parseInt(dateInfo[0]),Integer.parseInt(dateInfo[1]),Integer.parseInt(dateInfo[2]));
             }
             if(i>4){
-                String[] dateInfo= lineInfo[0].split("-");
-                System.out.println(lineInfo[0]);
-                date= new Date(Integer.parseInt(dateInfo[0]),Integer.parseInt(dateInfo[1]),Integer.parseInt(dateInfo[2].trim()));//igual ao valueDate
-                description= lineInfo[2].trim();
-                draft=Double.parseDouble(lineInfo[3]);
-                credit=Double.parseDouble(lineInfo[4]);
-                accountingBalance=Double.parseDouble(lineInfo[5]);
-                availableBalance=Double.parseDouble(lineInfo[6]);
-                statementLineList.add(new StatementLine(date, date, description, draft, credit, accountingBalance, availableBalance, null));
+                statementLineList.add(StatementLine.newStatement(lineInfo));
             }
             i++;
 
@@ -108,43 +104,50 @@ public abstract class Account {
         return interestedRate;
     }
 
-    public double currentBalance() {
-        if(statementLineList.size()>0) {
-            return statementLineList.get(statementLineList.size()-1).getAvailableBalance();
+    public StatementLine getLastStatement(){
+        int size= statementLineList.size();
+        if(size==0){
+            return null;
         }
-        return 0.0;
+        return statementLineList.get(size-1);
+    }
+
+    public double currentBalance() {
+        if(getLastStatement()==null){
+            return 0;
+        }
+        return getLastStatement().getAvailableBalance();
     }
 
     public double estimatedAverageBalance() {
         int currentYear= new Date().getYear();
-        if(statementLineList.size()==0){
-            return 0;
+        StatementLine lastStatement= getLastStatement();
+        if(lastStatement==null|| lastStatement.getDate().getYear()!=currentYear){
+            return currentBalance();
         }
-        StatementLine lastStatement=statementLineList.get(statementLineList.size()-1);
-        if(lastStatement.getDate().getYear()!=currentYear){
-            return lastStatement.getAvailableBalance();
-        }
-        int totalBalance = 0;
+        double totalBalance = 0;
         int numDays = 0;
-        int daysInAccount=0;
+        int daysInAccount;
         Date date;
         Date currentDate= new Date();
         for(StatementLine line: statementLineList){
             if(line.getDate().getYear()==currentYear){
                 date=line.getDate();
                 if(statementLineList.size()>statementLineList.indexOf(line)+1){
-                    numDays+=date.diffInDays(statementLineList.get(statementLineList.indexOf(line)+1).getDate());
+                    //numDays+=date.diffInDays(statementLineList.get(statementLineList.indexOf(line)+1).getDate());
                     daysInAccount=date.diffInDays(statementLineList.get(statementLineList.indexOf(line)+1).getDate());
-                    totalBalance+=line.getAvailableBalance()*daysInAccount;
                 }
                 else{
-                    numDays+=date.diffInDays(currentDate);
+                    //numDays+=date.diffInDays(currentDate);
                     daysInAccount=date.diffInDays(currentDate);
-                    totalBalance+=line.getAvailableBalance()*daysInAccount;
-                    
+
                 }
+                totalBalance+=line.getAvailableBalance()*daysInAccount;
             }
         }
+        Date inicioAno=new Date(1,1, currentYear);
+        numDays=inicioAno.diffInDays(new Date())-1;
+        //fazer alteracao ao numero de dias totais
         return (totalBalance/numDays);
     }
 
@@ -185,36 +188,32 @@ public abstract class Account {
         return statementLineList;
     }
 
+    public void setAdditionalInfo(String additionalInfo) {
+        this.additionalInfo = additionalInfo;
+    }
+
     public abstract Category getAccountCategory();
 
     public void addStatementLine(StatementLine statementLine) {
-        if(statementLine.getCategory() == null)
+        if(statementLine.getCategory() == null){
             statementLine.setCategory(getAccountCategory());
+        }
         statementLineList.add(statementLine);
-        this.balance=statementLine.getAvailableBalance();
+
         if(statementLineList.size()<2){
             this.startDate=statementLine.getDate();
             this.endDate=statementLine.getDate();
         }
-        if(statementLineList.get(statementLineList.size()-1).equals(statementLine)){
+        if(getLastStatement().equals(statementLine)){
             this.endDate=statementLine.getDate();
         }
         statementLineList.sort(StatementLine::compareTo);
     }
 
     public void removeStatementLinesBefore(Date date) {
-        int index=0;
-        for(StatementLine statementLine: statementLineList){
-            if(statementLine.getDate().equals(date)){
-                index=statementLineList.indexOf(statementLine);
-                break;
-            }
-        }
-        int currentIndex=0;
-        while (currentIndex!= index){
-            statementLineList.remove(currentIndex);
-            currentIndex++;
-        }
+        BeforeDateSelector selector=new BeforeDateSelector(date);
+        Filter<StatementLine, BeforeDateSelector> filter= new Filter<>(selector);
+        statementLineList=(List<StatementLine>) filter.apply(statementLineList);
         statementLineList.sort(StatementLine::compareTo);
     }
 

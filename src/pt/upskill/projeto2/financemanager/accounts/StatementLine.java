@@ -36,6 +36,19 @@ public class StatementLine implements Comparable<StatementLine> {
 		this.availableBalance = availableBalance;
 		this.category = category;
 	}
+	public static StatementLine newStatement(String[] statementLine){
+		String[] dateInfo= statementLine[0].split("-");
+		Date date= new Date(Integer.parseInt(dateInfo[0]),Integer.parseInt(dateInfo[1]),Integer.parseInt(dateInfo[2].trim()));//igual ao valueDate
+		String description= statementLine[2].trim();
+		double draft=0;
+		if(!statementLine[3].isEmpty()){
+			draft=Double.parseDouble(statementLine[3]);
+		}
+		double credit=Double.parseDouble(statementLine[4]);
+		double accountingBalance=Double.parseDouble(statementLine[5]);
+		double availableBalance=Double.parseDouble(statementLine[6]);
+		return new StatementLine(date, date, description, draft, credit, accountingBalance, availableBalance, null);
+	}
 
 	public Date getDate() {
 		return date;
@@ -74,6 +87,14 @@ public class StatementLine implements Comparable<StatementLine> {
 		
 	}
 
+	public void setCredit(double credit) {
+		this.credit = credit;
+	}
+
+	public void setDraft(double draft) {
+		this.draft = draft;
+	}
+
 	@Override
 	public String toString() {
 		return date.toString()+" ;" + valueDate.toString() +
@@ -84,4 +105,6 @@ public class StatementLine implements Comparable<StatementLine> {
 	public int compareTo(StatementLine o) {
 		return this.getDate().compareTo(o.getDate());
 	}
+
+
 }
